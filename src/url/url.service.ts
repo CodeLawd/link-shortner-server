@@ -15,8 +15,8 @@ export interface UrlEntry {
 @Injectable()
 export class UrlService {
   private readonly baseUrl = 'http://short.est/';
-  private counter = 1000; // Start with a non-zero value
-  private readonly DEFAULT_EXPIRATION_DAYS = 30; // Default expiration in days
+  private counter = 1000;
+  private readonly DEFAULT_EXPIRATION_DAYS = 30;
 
   // Base62 character set: 0-9, a-z, A-Z (62 characters)
   private readonly base62Chars =
@@ -33,7 +33,6 @@ export class UrlService {
   private async cleanupExpiredUrls(): Promise<void> {
     const now = new Date().toISOString();
 
-    // MongoDB will handle TTL indexes for expiration, but we'll still do a manual cleanup
     await this.urlModel.deleteMany({
       expiresAt: { $lt: now, $ne: null },
     });
@@ -85,7 +84,6 @@ export class UrlService {
       let shortPath = '';
       let isUnique = false;
 
-      // Loop until we find a unique shortPath
       while (!isUnique) {
         // Use an incrementing counter for shorter IDs
         const uniqueId = Date.now() + this.counter++;
@@ -116,7 +114,6 @@ export class UrlService {
       return this.baseUrl + shortPath;
     } catch (error) {
       console.log(error);
-      // Return a fallback string instead of null
       return this.baseUrl + 'error';
     }
   }
@@ -129,19 +126,12 @@ export class UrlService {
       return null;
     }
 
-    // Find URL in database and update in one operation
+    // Find URL in database without incrementing visit count
     const now = new Date().toISOString();
-    const urlEntry = await this.urlModel.findOneAndUpdate(
-      {
-        shortPath,
-        $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
-      },
-      {
-        $inc: { visitCount: 1 },
-        $set: { lastVisited: now },
-      },
-      { new: true }, // Return the updated document
-    );
+    const urlEntry = await this.urlModel.findOne({
+      shortPath,
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+    });
 
     if (!urlEntry) {
       return null;
@@ -164,37 +154,24 @@ export class UrlService {
       return null;
     }
 
-    return {
-      originalUrl: urlEntry.originalUrl,
-      shortPath: urlEntry.shortPath,
-      createdAt: urlEntry.createdAt,
-      visitCount: urlEntry.visitCount,
-      lastVisited: urlEntry.lastVisited,
-      expiresAt: urlEntry.expiresAt,
-    };
+    return urlEntry;
   }
 
   async listAllUrls(): Promise<UrlEntry[]> {
-    // Get all non-expired URLs
-    const urlEntries = await this.urlModel.find({
-      $or: [
-        { expiresAt: null },
-        { expiresAt: { $gt: new Date().toISOString() } },
-      ],
-    });
+    // Get all non-expired URLs in descending order by creation date (newest first)
+    const urlEntries = await this.urlModel
+      .find({
+        $or: [
+          { expiresAt: null },
+          { expiresAt: { $gt: new Date().toISOString() } },
+        ],
+      })
+      .sort({ createdAt: -1 });
 
-    return urlEntries.map((entry) => ({
-      originalUrl: entry.originalUrl,
-      shortPath: entry.shortPath,
-      createdAt: entry.createdAt,
-      visitCount: entry.visitCount,
-      lastVisited: entry.lastVisited,
-      expiresAt: entry.expiresAt,
-    }));
+    return urlEntries;
   }
 
   async visitUrl(shortPath: string): Promise<string | null> {
-    // Find URL in database and update in one operation
     const now = new Date().toISOString();
     const urlEntry = await this.urlModel.findOneAndUpdate(
       {
@@ -205,7 +182,7 @@ export class UrlService {
         $inc: { visitCount: 1 },
         $set: { lastVisited: now },
       },
-      { new: true }, // Return the updated document
+      { new: true },
     );
 
     if (!urlEntry) {
@@ -215,31 +192,26 @@ export class UrlService {
     return urlEntry.originalUrl;
   }
 
-  async searchUrls(query: string): Promise<UrlEntry[]> {
-    if (!query || query.length < 3) {
-      return [];
-    }
+  // async searchUrls(query: string): Promise<UrlEntry[]> {
+  //   if (!query || query.length < 3) {
+  //     return [];
+  //   }
 
-    const normalizedQuery = query.toLowerCase();
+  //   const normalizedQuery = query.toLowerCase();
 
-    // Search in MongoDB using regex
-    const urlEntries = await this.urlModel.find({
-      originalUrl: { $regex: normalizedQuery, $options: 'i' },
-      $or: [
-        { expiresAt: null },
-        { expiresAt: { $gt: new Date().toISOString() } },
-      ],
-    });
+  //   // Search in MongoDB using regex and return in descending order by creation date
+  //   const urlEntries = await this.urlModel
+  //     .find({
+  //       originalUrl: { $regex: normalizedQuery, $options: 'i' },
+  //       $or: [
+  //         { expiresAt: null },
+  //         { expiresAt: { $gt: new Date().toISOString() } },
+  //       ],
+  //     })
+  //     .sort({ createdAt: -1 }); // -1 for descending order
 
-    return urlEntries.map((entry) => ({
-      originalUrl: entry.originalUrl,
-      shortPath: entry.shortPath,
-      createdAt: entry.createdAt,
-      visitCount: entry.visitCount,
-      lastVisited: entry.lastVisited,
-      expiresAt: entry.expiresAt,
-    }));
-  }
+  //   return urlEntries;
+  // }
 
   private extractShortPath(shortUrl: string): string | null {
     if (!shortUrl) {

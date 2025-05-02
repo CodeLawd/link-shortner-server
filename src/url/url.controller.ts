@@ -4,10 +4,8 @@ import {
   Get,
   Body,
   Param,
-  Res,
   HttpStatus,
   HttpException,
-  Query,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { UrlService } from './url.service';
@@ -31,8 +29,6 @@ export class UrlController {
     if (!body.url) {
       throw new HttpException('URL is required', HttpStatus.BAD_REQUEST);
     }
-
-    console.log(body, 'bodyyyy');
 
     try {
       const shortUrl = await this.urlService.encodeUrl(
@@ -81,26 +77,26 @@ export class UrlController {
     return this.urlService.listAllUrls();
   }
 
-  @Get('api/search')
-  async searchUrls(@Query('q') query: string): Promise<UrlStatistics[]> {
-    if (!query || query.length < 3) {
-      throw new HttpException(
-        'Search query must be at least 3 characters long',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+  // @Get('api/search')
+  // async searchUrls(@Query('q') query: string): Promise<UrlStatistics[]> {
+  //   if (!query || query.length < 3) {
+  //     throw new HttpException(
+  //       'Search query must be at least 3 characters long',
+  //       HttpStatus.BAD_REQUEST,
+  //     );
+  //   }
 
-    return this.urlService.searchUrls(query);
-  }
+  //   return this.urlService.searchUrls(query);
+  // }
 
   @Get(':path')
-  async redirect(@Param('path') path: string, @Res() res: Response) {
+  async redirect(@Param('path') path: string) {
     const originalUrl = await this.urlService.visitUrl(path);
 
     if (!originalUrl) {
       throw new HttpException('URL not found', HttpStatus.NOT_FOUND);
     }
 
-    return res.redirect(originalUrl);
+    return { url: originalUrl };
   }
 }
