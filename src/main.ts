@@ -7,7 +7,7 @@ async function bootstrap() {
 
   // Enable CORS for frontend integration
   app.enableCors({
-    origin: '*', // Next.js default port
+    origin: '*',
     methods: ['GET', 'POST'],
     credentials: true,
   });

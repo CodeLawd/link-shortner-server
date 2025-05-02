@@ -8,7 +8,7 @@ export class Url {
   @Prop({ required: true })
   originalUrl: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   shortPath: string;
 
   @Prop({ required: true, default: () => new Date().toISOString() })

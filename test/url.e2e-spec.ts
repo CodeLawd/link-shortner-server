@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { setupMongoDB, teardownMongoDB, clearDatabase } from './setup-mongo';
 
 describe('UrlController (e2e)', () => {
   let app: INestApplication;
@@ -9,6 +10,9 @@ describe('UrlController (e2e)', () => {
   let shortPath: string;
 
   beforeAll(async () => {
+    // Set up in-memory MongoDB
+    await setupMongoDB();
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -20,6 +24,13 @@ describe('UrlController (e2e)', () => {
 
   afterAll(async () => {
     await app.close();
+    // Clean up MongoDB
+    await teardownMongoDB();
+  });
+
+  afterEach(async () => {
+    // Clear database between tests
+    await clearDatabase();
   });
 
   describe('/api/encode (POST)', () => {
